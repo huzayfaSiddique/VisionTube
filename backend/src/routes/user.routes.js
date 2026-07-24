@@ -6,11 +6,15 @@ import {
   refreshAccessToken,
   changeCurrentPassword,
   getCurrentUser,
+  updateAccountDetails,
+  getUserChannelProfile,
+  getWatchedHistory,
 } from "../controllers/user.controller.js";
+import { updateAvatar } from "../controllers/avatar.controller.js";
 import {
-  updateAvatar,
-  deleteAvatar,
-} from "../controllers/avatar.controller.js";
+  updateCoverImage,
+  deleteCoverImage,
+} from "../controllers/coverimage.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -32,4 +36,11 @@ router.route("/current-user").get(verifyJWT, getCurrentUser);
 router
   .route("/update-avatar")
   .patch(verifyJWT, upload.single("avatar"), updateAvatar);
+router
+  .route("/update-coverimage")
+  .patch(verifyJWT, upload.single("coverImage"), updateCoverImage);
+router.route("/delete-coverimage").delete(verifyJWT, deleteCoverImage);
+router.route("/account-details").patch(verifyJWT, updateAccountDetails);
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile);
+router.route("/watched-history").get(verifyJWT, getWatchedHistory);
 export default router;
