@@ -33,33 +33,13 @@ const updateAvatar = asyncHandler(async (req, res) => {
     }
   ).select("-password -refreshToken");
 
-   if (oldAvatar) {
-        const oldPublicId = getPublicIdFromUrl(oldAvatar);
-        await deleteFromCloudinary(oldPublicId);
-    }
+  if (oldAvatar) {
+    const oldPublicId = getPublicIdFromUrl(oldAvatar);
+    await deleteFromCloudinary(oldPublicId);
+  }
   return res
     .status(200)
     .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"));
 });
 
-const deleteAvatar = asyncHandler(async (req, res) => {
-  if (!req.user?.avatar) {
-    throw new ApiError(404, "No avatar found");
-  }
-
-  const deletedUser = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $unset: {
-        avatar: 1,
-      },
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-  return res
-    .status(200)
-    .json(new ApiResponse(200, deletedUser, "Avatar deleted successfully"));
-});
-export { updateAvatar, deleteAvatar };
+export { updateAvatar, getPublicIdFromUrl };
