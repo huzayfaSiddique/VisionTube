@@ -6,10 +6,7 @@ import {
   deleteFromCloudinary,
 } from "../utils/cloudinary.js";
 import { User } from "../models/user.models.js";
-
-const getPublicIdFromUrl = (url) => {
-  return url.split("/").pop().split(".")[0];
-};
+import { getPublicIdFromUrl } from "../utils/publicIdfromURL.js";
 
 const updateAvatar = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.file?.path;
@@ -42,4 +39,4 @@ const updateAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedUser, "Avatar updated successfully"));
 });
 
-export { updateAvatar, getPublicIdFromUrl };
+export { updateAvatar };
