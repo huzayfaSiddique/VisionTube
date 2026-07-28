@@ -185,7 +185,7 @@ const getVideoById = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────
 // 4. UPDATE VIDEO (title, description, thumbnail)
 // ─────────────────────────────────────────────
-const updateVideo = asyncHandler(async (req, res) => {
+const updateVideoinfo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   const { title, description } = req.body;
 
@@ -321,7 +321,7 @@ export {
   uploadVideo,
   getAllVideos,
   getVideoById,
-  updateVideo,
+  updateVideoinfo,
   deleteVideo,
   togglePublishStatus,
 };
