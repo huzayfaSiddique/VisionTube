@@ -2,6 +2,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { Video } from "../models/video.models.js";
 import { User } from "../models/user.models.js";
+import { Comment } from "../models/comment.models.js";
+import { Like } from "../models/like.models.js";
+import { Playlist } from "../models/playlist.models.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { getPublicIdFromUrl } from "../utils/publicIdfromURL.js";
@@ -268,6 +271,31 @@ const deleteVideo = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while deleting video");
   }
 
+  // Orphan Cleanup 1: Find comments on this video & delete them
+  const comments = await Comment.find({ video: videoId });
+  const commentIds = comments.map((comment) => comment._id);
+
+  await Comment.deleteMany({ video: videoId });
+
+  // Orphan Cleanup 2: Delete likes attached to this video & its comments
+  await Like.deleteMany({
+    $or: [
+      { video: videoId },
+      { comment: { $in: commentIds } },
+    ],
+  });
+
+  // Orphan Cleanup 3: Pull video reference from any Playlists
+  await Playlist.updateMany(
+    { videos: videoId },
+    { $pull: { videos: videoId } }
+  );
+
+  // Orphan Cleanup 4: Pull video reference from any User Watch History
+  await User.updateMany(
+    { "watchHistory.video": videoId },
+    { $pull: { watchHistory: { video: videoId } } }
+  );
 
   if (oldVideo) {
     const oldPublicId = getPublicIdFromUrl(oldVideo);
