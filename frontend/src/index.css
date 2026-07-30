@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom palette placeholder — we'll design this properly once
+     we sketch the visual direction. Kept neutral for now. */
+  --color-brand: #6d28d9;
+  --color-brand-light: #8b5cf6;
+  --color-brand-dark: #4c1d95;
+}
+
+body {
+  @apply bg-neutral-950 text-neutral-100;
+}
