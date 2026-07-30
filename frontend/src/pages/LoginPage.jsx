@@ -44,7 +44,7 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
-              autoComplete="email"
+              autoComplete="username"
               className="w-full rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 focus:outline-none focus:border-brand"
               {...register("email", { required: "Email is required" })}
             />

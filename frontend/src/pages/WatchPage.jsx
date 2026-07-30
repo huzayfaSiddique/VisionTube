@@ -1,12 +1,15 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getVideoById } from "../api/video.api";
 import { formatViews, timeAgo } from "../lib/formatters";
+import { useAuth } from "../context/AuthContext";
 import LikeButton from "../components/video/LikeButton";
+import SubscribeButton from "../components/channel/SubscribeButton";
 import CommentSection from "../components/comment/CommentSection";
 
 export default function WatchPage() {
   const { videoId } = useParams();
+  const { user: currentUser } = useAuth();
 
   const { data: video, isLoading, isError, error } = useQuery({
     queryKey: ["video", videoId],
@@ -51,23 +54,47 @@ export default function WatchPage() {
       <h1 className="text-lg font-semibold mt-4">{video.title}</h1>
 
       <div className="flex items-center justify-between mt-3">
-        <div className="flex items-center gap-3">
-          {video.owner?.avatar ? (
-            <img
-              src={video.owner.avatar}
-              alt={video.owner.username}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center text-sm font-medium">
-              {video.owner?.username?.[0]?.toUpperCase() ?? "?"}
+        <div className="flex items-center gap-4">
+          <Link to={`/c/${video.owner?.username}`} className="flex items-center gap-3 group">
+            {video.owner?.avatar ? (
+              <img
+                src={video.owner.avatar}
+                alt={video.owner.username}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center text-sm font-medium">
+                {video.owner?.username?.[0]?.toUpperCase() ?? "?"}
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium group-hover:underline">{video.owner?.fullName}</p>
+              <p className="text-xs text-neutral-500">
+                @{video.owner?.username} ·{" "}
+                {formatViews(video.owner?.subscribers).replace("view", "subscriber")}
+              </p>
             </div>
+          </Link>
+
+          {currentUser?._id !== video.owner?._id && (
+            <SubscribeButton
+              channelId={video.owner?._id}
+              isSubscribed={video.owner?.isSubscribed}
+              queryKey={["video", videoId]}
+              updateFn={(old, { isSubscribed, delta }) =>
+                old
+                  ? {
+                      ...old,
+                      owner: {
+                        ...old.owner,
+                        isSubscribed,
+                        subscribers: old.owner.subscribers + delta,
+                      },
+                    }
+                  : old
+              }
+            />
           )}
-          <div>
-            <p className="text-sm font-medium">{video.owner?.fullName}</p>
-            <p className="text-xs text-neutral-500">@{video.owner?.username}</p>
-          </div>
-          {/* Subscribe button comes in Step 6 */}
         </div>
 
         <LikeButton

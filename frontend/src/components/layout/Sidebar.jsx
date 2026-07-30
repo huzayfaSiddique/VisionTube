@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { Home, Users, ListVideo, ThumbsUp, History } from "lucide-react";
 
-// NOTE: only "/" (Home) has a real page behind it right now (Step 4+).
-// The other links are wired up so the shell is complete, but their
-// routes don't exist yet — clicking them will show a blank content
-// area until we build those pages in later steps. That's expected.
+// NOTE: "/", "/watch/:id", "/c/:username", and "/subscriptions" are real
+// pages now (Steps 4-6). Playlists/Liked videos/History routes don't
+// exist yet — clicking them will show a blank content area until we
+// build those pages in later steps. That's expected.
 const navItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/subscriptions", label: "Subscriptions", icon: Users },

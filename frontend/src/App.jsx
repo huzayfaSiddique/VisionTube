@@ -5,6 +5,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
 import WatchPage from "./pages/WatchPage";
+import ChannelPage from "./pages/ChannelPage";
+import SubscriptionsPage from "./pages/SubscriptionsPage";
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/watch/:videoId" element={<WatchPage />} />
+          <Route path="/c/:username" element={<ChannelPage />} />
+          <Route path="/subscriptions" element={<SubscriptionsPage />} />
         </Route>
       </Route>
     </Routes>
