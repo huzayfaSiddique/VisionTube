@@ -18,7 +18,7 @@ const uploadVideo = asyncHandler(async (req, res) => {
   }
 
 
-  const videoLocalPath = req.files?.video?.[0]?.path;
+  const videoLocalPath = req.files?.videoFile?.[0]?.path;
   const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
 
   if (!videoLocalPath || !thumbnailLocalPath) {
@@ -166,10 +166,41 @@ const getVideoById = asyncHandler(async (req, res) => {
     {
       $addFields: { owner: { $first: "$owner" } },
     },
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "video",
+        as: "likes",
+      },
+    },
+    {
+      $addFields: {
+        likesCount: { $size: "$likes" },
+        isLiked: {
+          $in: [
+            new mongoose.Types.ObjectId(req.user?._id),
+            "$likes.owner",
+          ],
+        },
+      },
+    },
+    {
+      $project: { likes: 0 },
+    },
   ]);
 
   if (!video?.length) {
     throw new ApiError(404, "Video not found");
+  }
+
+  // Unpublished videos are only accessible by their owner.
+  // This check happens after the aggregate so we avoid a double DB query.
+  if (
+    !video[0].isPublished &&
+    video[0].owner._id?.toString() !== req.user?._id?.toString()
+  ) {
+    throw new ApiError(403, "This video is not available");
   }
 
   await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } });
