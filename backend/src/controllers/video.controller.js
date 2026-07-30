@@ -69,6 +69,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     sortBy = "createdAt",
     sortType = "desc",
     userId,
+    includeUnpublished,
   } = req.query;
 
   const pipeline = [];
@@ -95,8 +96,16 @@ const getAllVideos = asyncHandler(async (req, res) => {
     });
   }
 
-  // Only return published videos
-  pipeline.push({ $match: { isPublished: true } });
+  // Only return published videos — UNLESS the caller explicitly asked for
+  // unpublished videos too (Studio's "My Videos") AND is the owner of that
+  // catalog. This is opt-in so the public Channel page never leaks drafts,
+  // even when you're the one viewing your own channel.
+  const isOwnCatalog =
+    userId && req.user?._id && userId === req.user._id.toString();
+
+  if (!(includeUnpublished === "true" && isOwnCatalog)) {
+    pipeline.push({ $match: { isPublished: true } });
+  }
 
   // Sort stage
   pipeline.push({
