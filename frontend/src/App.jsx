@@ -4,6 +4,7 @@ import MainLayout from "./components/layout/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
+import WatchPage from "./pages/WatchPage";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/watch/:videoId" element={<WatchPage />} />
         </Route>
       </Route>
     </Routes>
