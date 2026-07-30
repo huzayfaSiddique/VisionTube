@@ -159,7 +159,46 @@ const getVideoById = asyncHandler(async (req, res) => {
         foreignField: "_id",
         as: "owner",
         pipeline: [
-          { $project: { username: 1, fullName: 1, avatar: 1 } },
+          {
+            $lookup: {
+              from: "subscriptions",
+              localField: "_id",
+              foreignField: "channel",
+              as: "subscribers",
+            },
+          },
+          {
+            // Computed first, in its own stage, so it reads the raw
+            // `subscribers` array before the next stage collapses it to a count.
+            $addFields: {
+              isSubscribed: {
+                $cond: {
+                  if: {
+                    $in: [
+                      req.user?._id ? new mongoose.Types.ObjectId(req.user._id) : null,
+                      "$subscribers.subscriber",
+                    ],
+                  },
+                  then: true,
+                  else: false,
+                },
+              },
+            },
+          },
+          {
+            $addFields: {
+              subscribers: { $size: "$subscribers" },
+            },
+          },
+          {
+            $project: {
+              username: 1,
+              fullName: 1,
+              avatar: 1,
+              subscribers: 1,
+              isSubscribed: 1,
+            },
+          },
         ],
       },
     },

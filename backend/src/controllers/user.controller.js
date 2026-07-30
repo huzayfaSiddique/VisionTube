@@ -270,21 +270,27 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
     {
+      // Computed first, in its own stage, so it reads the raw `subscribers`
+      // array (subscription docs) before the next stage collapses it to a count.
+      $addFields: {
+        isSubscribed: {
+          $cond: {
+            if: {
+              $in: [req.user?._id, "$subscribers.subscriber"],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
       $addFields: {
         subscribers: {
           $size: "$subscribers",
         },
         subscribedTo: {
           $size: "$subscribedTo",
-        },
-        isSubscribed: {
-          $cond: {
-            if: {
-              $in: [req.user?._id, "$subscribedTo.subscriber"],
-            },
-            then: true,
-            else: false,
-          },
         },
       },
     },

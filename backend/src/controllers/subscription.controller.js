@@ -20,7 +20,7 @@ const toggleSubscription = asyncHandler(async (req, res) => {
 
   const subscription = await Subscription.findOne({
     subscriber: req.user._id,
-    subscribedTo: channelId,
+    channel: channelId,
   });
 
   if (subscription) {
