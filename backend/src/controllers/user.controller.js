@@ -3,6 +3,8 @@ import { ApiError } from "../utils/apiError.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
   // validation
@@ -69,6 +71,24 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
 
+// Hoisted to module scope: both loginUser and refreshAccessToken need this.
+const accessTokenandrefreshToken = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({
+      validateBeforeSave: false,
+    });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new ApiError(500, "Error Generating JWT tokens");
+  }
+};
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -86,23 +106,6 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid User Credentials !");
   }
 
-  const accessTokenandrefreshToken = async (userId) => {
-    try {
-      const user = await User.findById(userId);
-      const accessToken = await user.generateAccessToken();
-      const refreshToken = await user.generateRefreshToken();
-
-      user.refreshToken = refreshToken;
-      await user.save({
-        validateBeforeSave: false,
-      });
-
-      return { accessToken, refreshToken };
-    } catch (error) {
-      throw new ApiError(500, "Error Generating JWT tokens");
-    }
-  };
-
   const { accessToken, refreshToken } = await accessTokenandrefreshToken(
     user._id
   );
@@ -113,7 +116,8 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
 
   return res
@@ -145,7 +149,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   );
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
   return res
     .status(200)
@@ -156,7 +161,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies.refreshToken || req.body.refreshToken;
+    req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
@@ -179,7 +184,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     await accessTokenandrefreshToken(user._id);
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
   };
   return res
     .status(200)
