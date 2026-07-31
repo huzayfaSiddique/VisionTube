@@ -370,18 +370,47 @@ const getWatchedHistory = asyncHandler(async (req, res) => {
       },
     },
   ]);
-  if (!watchHistory?.length) {
-    throw new ApiError(404, "Watch History not found!");
-  }
+  // An empty history is a valid state (e.g. a brand-new account), not an
+  // error — the $match/$unwind pipeline simply yields no group in that
+  // case, so just return an empty array instead of 404ing.
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        watchHistory[0].watchHistory,
+        watchHistory[0]?.watchHistory || [],
         "Watch History fetched successfully"
       )
     );
+});
+
+const removeFromWatchHistory = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(videoId)) {
+    throw new ApiError(400, "Invalid Video ID");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $pull: { watchHistory: { video: videoId } } },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Removed from watch history"));
+});
+
+const clearWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: { watchHistory: [] } },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Watch history cleared"));
 });
 
 export {
@@ -394,4 +423,6 @@ export {
   updateAccountDetails,
   getUserChannelProfile,
   getWatchedHistory,
+  removeFromWatchHistory,
+  clearWatchHistory,
 };

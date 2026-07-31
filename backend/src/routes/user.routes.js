@@ -9,6 +9,8 @@ import {
   updateAccountDetails,
   getUserChannelProfile,
   getWatchedHistory,
+  removeFromWatchHistory,
+  clearWatchHistory,
 } from "../controllers/user.controller.js";
 import { updateAvatar } from "../controllers/avatar.controller.js";
 import {
@@ -43,4 +45,8 @@ router.route("/delete-coverimage").delete(verifyJWT, deleteCoverImage);
 router.route("/account-details").patch(verifyJWT, updateAccountDetails);
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile);
 router.route("/watched-history").get(verifyJWT, getWatchedHistory);
+router.route("/watched-history").delete(verifyJWT, clearWatchHistory);
+router
+  .route("/watched-history/:videoId")
+  .delete(verifyJWT, removeFromWatchHistory);
 export default router;
