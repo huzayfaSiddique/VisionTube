@@ -128,37 +128,100 @@ export default function ChannelPage() {
       </div>
 
       <div className="mt-8">
-        <h2 className="text-sm font-semibold mb-4 text-neutral-300">Videos</h2>
+        <div className="flex items-center gap-1 border-b border-neutral-800 mb-6">
+          <button
+            onClick={() => setTab("videos")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "videos"
+                ? "border-brand text-neutral-100"
+                : "border-transparent text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            Videos
+          </button>
+          <button
+            onClick={() => setTab("playlists")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "playlists"
+                ? "border-brand text-neutral-100"
+                : "border-transparent text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            Playlists
+          </button>
+        </div>
 
-        <VideoGrid
-          videos={videos?.docs}
-          isLoading={videosLoading}
-          isError={videosIsError}
-          error={videosError}
-        />
+        {tab === "videos" && (
+          <>
+            <VideoGrid
+              videos={videos?.docs}
+              isLoading={videosLoading}
+              isError={videosIsError}
+              error={videosError}
+            />
 
-        {videos && videos.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={!videos.hasPrevPage}
-              className="rounded-md px-4 py-1.5 text-sm border border-neutral-700 hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-            >
-              Previous
-            </button>
+            {videos && videos.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={!videos.hasPrevPage}
+                  className="rounded-md px-4 py-1.5 text-sm border border-neutral-700 hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                >
+                  Previous
+                </button>
 
-            <span className="text-sm text-neutral-400">
-              Page {videos.page} of {videos.totalPages}
-            </span>
+                <span className="text-sm text-neutral-400">
+                  Page {videos.page} of {videos.totalPages}
+                </span>
 
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!videos.hasNextPage || isPlaceholderData}
-              className="rounded-md px-4 py-1.5 text-sm border border-neutral-700 hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
-            >
-              Next
-            </button>
-          </div>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!videos.hasNextPage || isPlaceholderData}
+                  className="rounded-md px-4 py-1.5 text-sm border border-neutral-700 hover:bg-neutral-900 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "playlists" && (
+          <>
+            {playlistsLoading && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="aspect-video rounded-lg bg-neutral-800" />
+                    <div className="h-3.5 bg-neutral-800 rounded w-3/5 mt-3" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {playlistsIsError && (
+              <p className="text-red-400 text-sm">
+                Couldn&apos;t load playlists:{" "}
+                {playlistsError?.response?.data?.message || playlistsError?.message}
+              </p>
+            )}
+
+            {playlists && playlists.length === 0 && (
+              <p className="text-neutral-500 text-sm">
+                {isOwnChannel
+                  ? "You don't have any playlists yet."
+                  : "This channel doesn't have any public playlists yet."}
+              </p>
+            )}
+
+            {playlists && playlists.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6">
+                {playlists.map((playlist) => (
+                  <PlaylistCard key={playlist._id} playlist={playlist} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
