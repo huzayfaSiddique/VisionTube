@@ -3,10 +3,12 @@ import { useParams } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getUserChannelProfile } from "../api/user.api";
 import { getAllVideos } from "../api/video.api";
+import { getUserPlaylists } from "../api/playlist.api";
 import { useAuth } from "../context/AuthContext";
 import { formatViews } from "../lib/formatters";
 import SubscribeButton from "../components/channel/SubscribeButton";
 import VideoGrid from "../components/video/VideoGrid";
+import PlaylistCard from "../components/playlist/PlaylistCard";
 
 const PAGE_SIZE = 20;
 
@@ -14,6 +16,7 @@ export default function ChannelPage() {
   const { username } = useParams();
   const { user: currentUser } = useAuth();
   const [page, setPage] = useState(1);
+  const [tab, setTab] = useState("videos");
 
   const {
     data: channel,
@@ -37,8 +40,19 @@ export default function ChannelPage() {
   } = useQuery({
     queryKey: ["videos", "channel", channel?._id, page],
     queryFn: () => getAllVideos({ userId: channel._id, page, limit: PAGE_SIZE }),
-    enabled: !!channel?._id,
+    enabled: !!channel?._id && tab === "videos",
     placeholderData: keepPreviousData,
+  });
+
+  const {
+    data: playlists,
+    isLoading: playlistsLoading,
+    isError: playlistsIsError,
+    error: playlistsError,
+  } = useQuery({
+    queryKey: ["playlists", "channel", channel?._id],
+    queryFn: () => getUserPlaylists(channel._id),
+    enabled: !!channel?._id && tab === "playlists",
   });
 
   if (isLoading) {

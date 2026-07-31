@@ -1,14 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Search, Upload, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
+  const [searchValue, setSearchValue] = useState(searchParams.get("q") || "");
   const menuRef = useRef(null);
+
+  // Keep the input in sync with the URL when landing on /search directly
+  // or navigating between different searches.
+  useEffect(() => {
+    if (location.pathname === "/search") {
+      setSearchValue(searchParams.get("q") || "");
+    }
+  }, [location.pathname, searchParams]);
 
   // Close the dropdown when clicking outside of it.
   useEffect(() => {
@@ -23,8 +33,9 @@ export default function Navbar() {
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    // Search page/wiring comes later — this just prevents a page reload
-    // for now so the input is usable without breaking anything.
+    const trimmed = searchValue.trim();
+    if (!trimmed) return;
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
   const handleLogout = async () => {

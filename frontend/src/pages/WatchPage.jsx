@@ -5,6 +5,7 @@ import { formatViews, timeAgo } from "../lib/formatters";
 import { useAuth } from "../context/AuthContext";
 import LikeButton from "../components/video/LikeButton";
 import SubscribeButton from "../components/channel/SubscribeButton";
+import SaveToPlaylistButton from "../components/playlist/SaveToPlaylistButton";
 import CommentSection from "../components/comment/CommentSection";
 
 export default function WatchPage() {
@@ -97,11 +98,14 @@ export default function WatchPage() {
           )}
         </div>
 
-        <LikeButton
-          videoId={video._id}
-          isLiked={video.isLiked}
-          likesCount={video.likesCount}
-        />
+        <div className="flex items-center gap-2">
+          <LikeButton
+            videoId={video._id}
+            isLiked={video.isLiked}
+            likesCount={video.likesCount}
+          />
+          <SaveToPlaylistButton videoId={video._id} />
+        </div>
       </div>
 
       <div className="mt-4 rounded-lg bg-neutral-900 p-3">
