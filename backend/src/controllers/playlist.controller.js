@@ -249,6 +249,25 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, playlistResult, "Video removed from playlist successfully"));
 });
 
+const togglePlaylistVisibility = asyncHandler(async (req, res) => {
+  const { playlistId } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(playlistId)) {
+    throw new ApiError(400, "Invalid playlist ID");
+  }
+  const playlist = await Playlist.findById(playlistId);
+  if (!playlist) {
+    throw new ApiError(404, "Playlist not found");
+  }
+  if (playlist.owner.toString() !== req.user?._id.toString()) {
+    throw new ApiError(403, "Unauthorized access");
+  }
+  playlist.isPublic = !playlist.isPublic;
+  await playlist.save();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, playlist, "Playlist visibility toggled successfully"));
+});
+
 export {
   createPlaylist,
   getUserPlaylists,
@@ -257,4 +276,5 @@ export {
   deletePlaylist,
   addVideoToPlaylist,
   removeVideoFromPlaylist,
+  togglePlaylistVisibility,
 };

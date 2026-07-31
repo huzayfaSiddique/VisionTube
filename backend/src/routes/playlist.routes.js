@@ -8,6 +8,7 @@ import{
   deletePlaylist,
   addVideoToPlaylist,
   removeVideoFromPlaylist,
+  togglePlaylistVisibility,
 } from "../controllers/playlist.controller.js";
 
 const router=Router()
@@ -27,5 +28,7 @@ router.route("/user/:userId").get(getUserPlaylists)
 router.route("/:videoId/:playlistId").delete(removeVideoFromPlaylist)
 
 router.route("/:videoId/:playlistId").post(addVideoToPlaylist)
+
+router.route("/toggle/:playlistId").patch(togglePlaylistVisibility)
 
 export default router;
