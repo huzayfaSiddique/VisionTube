@@ -74,6 +74,23 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   const pipeline = [];
 
+  pipeline.push(
+  {
+    $lookup: {
+      from: "users",
+      localField: "owner",
+      foreignField: "_id",
+      as: "owner",
+      pipeline: [
+        { $project: { username: 1, fullName: 1, avatar: 1 } },
+      ],
+    },
+  },
+  {
+    $addFields: { owner: { $first: "$owner" } },
+  }
+);
+
   // Filter by search query on title or description
   if (query) {
     pipeline.push({ 
@@ -81,6 +98,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
         $or: [
           { title: { $regex: query, $options: "i" } },
           { description: { $regex: query, $options: "i" } },
+          { "owner.username": { $regex: query, $options: "i" } },
+          { "owner.fullName": { $regex: query, $options: "i" } }, 
         ],
       },
     });
@@ -92,7 +111,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Invalid User ID");
     }
     pipeline.push({
-      $match: { owner: new mongoose.Types.ObjectId(userId) },
+      $match: { "owner._id": new mongoose.Types.ObjectId(userId) },
     });
   }
 
@@ -111,24 +130,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
   pipeline.push({
     $sort: { [sortBy]: sortType === "asc" ? 1 : -1 },
   });
-
-  // Populate owner details
-  pipeline.push(
-    {
-      $lookup: {
-        from: "users",
-        localField: "owner",
-        foreignField: "_id",
-        as: "owner",
-        pipeline: [
-          { $project: { username: 1, fullName: 1, avatar: 1 } },
-        ],
-      },
-    },
-    {
-      $addFields: { owner: { $first: "$owner" } },
-    }
-  );
 
   // Aggregate with pagination using the mongooseAggregatePaginate plugin
   const options = {
