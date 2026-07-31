@@ -47,7 +47,7 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 h-14 border-b border-neutral-800 flex items-center justify-between px-4 gap-4 z-20">
       <Link to="/" className="text-lg font-semibold shrink-0">
-        VideoTube
+        VisionTube
       </Link>
 
       <form

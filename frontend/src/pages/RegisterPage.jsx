@@ -58,7 +58,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold mb-6 text-center">
-          Create your VideoTube account
+          Create your VisionTube account
         </h1>
 
         <form

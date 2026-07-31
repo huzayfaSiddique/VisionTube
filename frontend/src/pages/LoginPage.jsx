@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold mb-6 text-center">
-          Log in to VideoTube
+          Log in to VisionTube
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

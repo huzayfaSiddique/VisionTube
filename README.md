@@ -1,4 +1,4 @@
-# VideoTube
+# VisionTube
 
 A full-stack YouTube clone built with the MERN stack — upload and stream videos, subscribe to channels, build playlists, like and comment, and manage your own channel from a Studio dashboard.
 
@@ -33,7 +33,7 @@ A full-stack YouTube clone built with the MERN stack — upload and stream video
 
 ## Overview
 
-VideoTube is a video-sharing platform inspired by YouTube. It's split into two independent apps:
+VisionTube is a video-sharing platform inspired by YouTube. It's split into two independent apps:
 
 - **`backend/`** — a REST API (Express + MongoDB) handling auth, video/thumbnail storage (via Cloudinary), playlists, subscriptions, likes, and comments.
 - **`frontend/`** — a React (Vite) single-page app that consumes that API, styled with Tailwind CSS and using React Query for server-state management.
@@ -82,7 +82,7 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 ## Project structure
 
 ```
-VideoTube/
+VisionTube/
 ├── backend/
 │   ├── src/
 │   │   ├── controllers/     # Route handlers (business logic)
