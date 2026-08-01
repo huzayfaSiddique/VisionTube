@@ -11,6 +11,7 @@ import {
   getWatchedHistory,
   removeFromWatchHistory,
   clearWatchHistory,
+  getlatesttweetsofsubscribedchannels,
 } from "../controllers/user.controller.js";
 import { updateAvatar } from "../controllers/avatar.controller.js";
 import {
@@ -49,4 +50,5 @@ router.route("/watched-history").delete(verifyJWT, clearWatchHistory);
 router
   .route("/watched-history/:videoId")
   .delete(verifyJWT, removeFromWatchHistory);
+router.route("/subscribed-tweets").get(verifyJWT, getlatesttweetsofsubscribedchannels);
 export default router;

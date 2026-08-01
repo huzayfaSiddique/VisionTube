@@ -5,6 +5,8 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import { Tweet } from "../models/tweets.models.js";
+import { Subscription } from "../models/subscription.models.js";
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
   // validation
@@ -413,6 +415,35 @@ const clearWatchHistory = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Watch history cleared"));
 });
 
+const getlatesttweetsofsubscribedchannels = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  // 1. Fetch channel IDs that the logged-in user is subscribed to
+  const subscriptions = await Subscription.find({ subscriber: userId }).select("channel");
+  const channelIds = subscriptions.map((sub) => sub.channel);
+  if (!channelIds.length) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], "No tweets found (no subscriptions)"));
+  }
+  // 2. Query tweets created by those channels in the last 24 hours using $in and $gte
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const tweets = await Tweet.find({
+    owner: { $in: channelIds },
+    createdAt: { $gte: twentyFourHoursAgo },
+  })
+    .populate("owner", "username fullName avatar")
+    .sort({ createdAt: -1 });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        tweets,
+        "Latest tweets of subscribed channels fetched successfully"
+      )
+    );
+});
 export {
   registerUser,
   loginUser,
@@ -425,4 +456,5 @@ export {
   getWatchedHistory,
   removeFromWatchHistory,
   clearWatchHistory,
+  getlatesttweetsofsubscribedchannels,
 };
