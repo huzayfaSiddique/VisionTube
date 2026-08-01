@@ -9,6 +9,7 @@ import { formatViews } from "../lib/formatters";
 import SubscribeButton from "../components/channel/SubscribeButton";
 import VideoGrid from "../components/video/VideoGrid";
 import PlaylistCard from "../components/playlist/PlaylistCard";
+import TweetSection from "../components/tweet/TweetSection";
 
 const PAGE_SIZE = 20;
 
@@ -149,6 +150,16 @@ export default function ChannelPage() {
           >
             Playlists
           </button>
+          <button
+            onClick={() => setTab("tweets")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "tweets"
+                ? "border-brand text-neutral-100"
+                : "border-transparent text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            Tweets
+          </button>
         </div>
 
         {tab === "videos" && (
@@ -184,6 +195,10 @@ export default function ChannelPage() {
               </div>
             )}
           </>
+        )}
+
+        {tab === "tweets" && (
+          <TweetSection channelId={channel._id} isOwnChannel={isOwnChannel} />
         )}
 
         {tab === "playlists" && (

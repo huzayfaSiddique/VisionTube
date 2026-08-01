@@ -12,7 +12,17 @@ export const toggleCommentLike = async (commentId) => {
   return res.data.data;
 };
 
+export const toggleTweetLike = async (tweetId) => {
+  const res = await axiosClient.post(`/likes/tweet/${tweetId}`);
+  return res.data.data;
+};
+
 export const getUserLikedVideos = async (userId) => {
   const res = await axiosClient.get(`/likes/liked-videos/${userId}`);
+  return res.data.data;
+};
+
+export const getUserLikedTweets = async (userId) => {
+  const res = await axiosClient.get(`/likes/liked-tweets/${userId}`);
   return res.data.data;
 };
