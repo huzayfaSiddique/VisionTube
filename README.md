@@ -60,7 +60,8 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 - Subscribe / unsubscribe to channels, with subscriber and subscription counts
 - Like/unlike videos, comments, and tweets
 - Comment on videos (create, edit, delete)
-- Public channel pages with a Videos tab and a Playlists tab (private playlists are hidden from non-owners)
+- Post, edit, and delete short text tweets from your own channel; like/unlike others' tweets
+- Public channel pages with Videos, Playlists, and Tweets tabs (private playlists are hidden from non-owners)
 
 **Playlists**
 - Create, rename, describe, and delete playlists
@@ -69,6 +70,11 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 
 **Studio**
 - Dashboard of your own videos (published and draft), with inline editing, publish toggling, and deletion
+
+**Tweets**
+- Post short (280-char) text-only tweets from your own channel page
+- Edit or delete your own tweets
+- Like/unlike any tweet, with a live like count
 
 ## Tech stack
 
@@ -237,9 +243,14 @@ All routes are prefixed with `/api/v1`. Routes marked 🔒 require a valid acces
 | PATCH | `/:commentId` | Edit a comment |
 | DELETE | `/:commentId` | Delete a comment |
 
-### Tweets (`/tweets`)
+### Tweets (`/tweets`) — all routes 🔒
 
-A basic tweet resource also exists on the backend (create/read/update/delete + likes), though the current frontend doesn't yet have a UI for it.
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/` | Create a tweet |
+| GET | `/user/:userId` | List a user's tweets (includes `likesCount`/`isLiked` for the requester) |
+| PATCH | `/:tweetId` | Edit a tweet |
+| DELETE | `/:tweetId` | Delete a tweet |
 
 ## Data models
 
@@ -253,7 +264,6 @@ A basic tweet resource also exists on the backend (create/read/update/delete + l
 
 ## Known issues / roadmap
 
-- Tweets have a backend resource but no frontend UI yet.
 - No mobile-specific navigation drawer for the sidebar yet (desktop sidebar is hidden below `md`).
 
 ## License
