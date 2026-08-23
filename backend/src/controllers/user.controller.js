@@ -8,7 +8,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { Tweet } from "../models/tweets.models.js";
 import { Subscription } from "../models/subscription.models.js";
-import { sendConfirmationEmail } from "../utils/sendEmail.js";
+import { addConfirmationEmailToQueue } from "../queues/email.queue.js";
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
   // validation
@@ -93,15 +93,11 @@ const registerUser = asyncHandler(async (req, res) => {
   const serverUrl = process.env.SERVER_URL || `http://localhost:${serverPort}`;
   const confirmationUrl = `${serverUrl}/api/v1/users/confirm-email?token=${emailVerificationToken}`;
 
-  // Send confirmation email in background (non-blocking)
-  setImmediate(() => {
-    sendConfirmationEmail({
-      email: user.email,
-      username: user.username,
-      confirmationUrl,
-    }).catch((err) =>
-      console.error("Background registration email dispatch failed:", err)
-    );
+  // Enqueue confirmation email job in BullMQ email queue
+  addConfirmationEmailToQueue({
+    email: user.email,
+    username: user.username,
+    confirmationUrl,
   });
 
   return res
@@ -561,15 +557,11 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
   const serverUrl = process.env.SERVER_URL || `http://localhost:${serverPort}`;
   const confirmationUrl = `${serverUrl}/api/v1/users/confirm-email?token=${emailVerificationToken}`;
 
-  // Non-blocking background email dispatch
-  setImmediate(() => {
-    sendConfirmationEmail({
-      email: user.email,
-      username: user.username,
-      confirmationUrl,
-    }).catch((err) =>
-      console.error("Background resend email dispatch failed:", err)
-    );
+  // Enqueue confirmation email job in BullMQ email queue
+  addConfirmationEmailToQueue({
+    email: user.email,
+    username: user.username,
+    confirmationUrl,
   });
 
   return res
