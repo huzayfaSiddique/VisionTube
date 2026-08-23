@@ -9,6 +9,9 @@ A full-stack YouTube clone built with the MERN stack — upload and stream video
   <img alt="React" src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black">
   <img alt="Vite" src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white">
   <img alt="TailwindCSS" src="https://img.shields.io/badge/TailwindCSS-4-06B6D4?logo=tailwindcss&logoColor=white">
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white">
+  <img alt="BullMQ" src="https://img.shields.io/badge/BullMQ-queue-orange">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white">
 </p>
 
 ---
@@ -21,6 +24,7 @@ A full-stack YouTube clone built with the MERN stack — upload and stream video
 - [Project structure](#project-structure)
 - [Getting started](#getting-started)
   - [Prerequisites](#prerequisites)
+  - [Redis (Docker)](#redis-docker)
   - [Backend setup](#backend-setup)
   - [Frontend setup](#frontend-setup)
 - [Environment variables](#environment-variables)
@@ -35,16 +39,18 @@ A full-stack YouTube clone built with the MERN stack — upload and stream video
 
 VisionTube is a video-sharing platform inspired by YouTube. It's split into two independent apps:
 
-- **`backend/`** — a REST API (Express + MongoDB) handling auth, video/thumbnail storage (via Cloudinary), playlists, subscriptions, likes, and comments.
+- **`backend/`** — a REST API (Express + MongoDB) handling auth, video/thumbnail storage (via Cloudinary), playlists, subscriptions, likes, comments, and a background email queue.
 - **`frontend/`** — a React (Vite) single-page app that consumes that API, styled with Tailwind CSS and using React Query for server-state management.
 
-Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, with automatic silent token refresh baked into the frontend's Axios client.
+Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, with automatic silent token refresh baked into the frontend's Axios client. New accounts go through an **email verification** step powered by a **BullMQ job queue backed by Redis**, with a Nodemailer fallback for development environments where Redis is unavailable.
 
 ## Features
 
 **Auth & account**
 - Register / login / logout with hashed passwords (bcrypt) and JWT access + refresh tokens (httpOnly cookies)
 - Silent access-token refresh on 401s, with request queuing so concurrent calls don't each trigger their own refresh
+- **Email verification on registration** — a confirmation link is emailed immediately after sign-up (24-hour expiry)
+- **Resend verification email** with a 30-second rate-limit cooldown to prevent spam
 - Update account details (name, email) and password
 - Update avatar and cover image, with automatic cleanup of the old Cloudinary asset
 
@@ -62,6 +68,7 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 - Comment on videos (create, edit, delete)
 - Post, edit, and delete short text tweets from your own channel; like/unlike others' tweets
 - Public channel pages with Videos, Playlists, and Tweets tabs (private playlists are hidden from non-owners)
+- **Feed of latest tweets from subscribed channels** (past 24 hours)
 
 **Playlists**
 - Create, rename, describe, and delete playlists
@@ -76,6 +83,12 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 - Edit or delete your own tweets
 - Like/unlike any tweet, with a live like count
 
+**Background email queue**
+- BullMQ job queue (Redis-backed) for reliable, async email delivery with exponential-backoff retries (up to 3 attempts: 5 s → 10 s → 20 s)
+- Graceful degradation: if Redis is unavailable, emails are dispatched directly via `setImmediate` so registration is never blocked
+- Nodemailer integration: uses your SMTP server in production, auto-creates an Ethereal test account in development
+- Branded HTML confirmation emails with a one-click verification button
+
 ## Tech stack
 
 | Layer | Technology |
@@ -84,21 +97,28 @@ Authentication uses JWT access/refresh tokens delivered as httpOnly cookies, wit
 | Backend | Node.js, Express 5, MongoDB, Mongoose (+ `mongoose-aggregate-paginate-v2`) |
 | Auth | JWT (access + refresh tokens), bcrypt, httpOnly cookies |
 | Media storage | Cloudinary (via Multer for temporary local upload handling) |
+| Email | Nodemailer (SMTP / Ethereal fallback) |
+| Job queue | BullMQ + Redis 7 (`ioredis`) |
+| Infrastructure | Docker Compose (Redis service) |
 
 ## Project structure
 
 ```
 VisionTube/
+├── docker-compose.yml        # Redis service for the BullMQ email queue
 ├── backend/
 │   ├── src/
-│   │   ├── controllers/     # Route handlers (business logic)
-│   │   ├── routes/          # Express routers, one per resource
-│   │   ├── models/          # Mongoose schemas
-│   │   ├── middlewares/     # auth (JWT verify), multer (uploads)
-│   │   ├── utils/           # ApiError, ApiResponse, asyncHandler, cloudinary helpers
+│   │   ├── config/           # Redis connection config (redis.js)
+│   │   ├── controllers/      # Route handlers (business logic)
+│   │   ├── routes/           # Express routers, one per resource
+│   │   ├── models/           # Mongoose schemas
+│   │   ├── middlewares/      # auth (JWT verify), multer (uploads)
+│   │   ├── queues/           # BullMQ email queue (email.queue.js)
+│   │   ├── workers/          # BullMQ email worker (email.worker.js)
+│   │   ├── utils/            # ApiError, ApiResponse, asyncHandler, cloudinary helpers, sendEmail
 │   │   ├── db/               # MongoDB connection
-│   │   ├── app.js            # Express app + route mounting
-│   │   └── index.js          # Entry point
+│   │   ├── app.js            # Express app + route mounting + global error handler
+│   │   └── index.js          # Entry point — connects DB, starts worker, starts server
 │   └── public/temp/          # Scratch space Multer writes to before Cloudinary upload
 └── frontend/
     └── src/
@@ -107,7 +127,7 @@ VisionTube/
         ├── context/          # AuthContext (current user, login/register/logout)
         ├── pages/            # Route-level views
         ├── lib/              # Formatters and other small helpers
-        └── App.jsx            # Route tree
+        └── App.jsx           # Route tree
 ```
 
 ## Getting started
@@ -117,13 +137,24 @@ VisionTube/
 - Node.js 18+
 - A MongoDB database (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
 - A [Cloudinary](https://cloudinary.com/) account (for video/image storage)
+- Docker & Docker Compose (for the Redis email queue — optional, see below)
+
+### Redis (Docker)
+
+The email queue requires a running Redis instance. Start one with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+This starts `visiontube-redis` on `localhost:6379` with persistence enabled. If Redis is not running, the backend automatically falls back to direct async email dispatch — so the app still works during development without Docker.
 
 ### Backend setup
 
 ```bash
 cd backend
 npm install
-cp .env.example .env   # then fill in your own values, see below
+cp .env.example .env   # then fill in your own values
 npm run dev
 ```
 
@@ -140,7 +171,7 @@ npm run dev
 
 The app runs on `http://localhost:5173` by default (Vite's default port).
 
-> Run both servers concurrently in separate terminals during development.
+> Run both servers (and Redis via Docker) concurrently during development.
 
 ## Environment variables
 
@@ -149,7 +180,8 @@ The app runs on `http://localhost:5173` by default (Vite's default port).
 | Variable | Description |
 |---|---|
 | `PORT` | Port the API server listens on (default `8000`) |
-| `MONGODB_URI` | MongoDB connection string (without the database name — it's appended from `constants.js`) |
+| `SERVER_URL` | Public URL of the backend, used to build email verification links (e.g. `http://localhost:8000`) |
+| `MONGODB_URI` | MongoDB connection string (without the database name) |
 | `CORS_ORIGIN` | Origin allowed to make credentialed requests (your frontend URL) |
 | `ACCESS_TOKEN_SECRET` | Secret used to sign JWT access tokens |
 | `ACCESS_TOKEN_EXPIRY` | Access token lifetime, e.g. `2h` |
@@ -158,6 +190,17 @@ The app runs on `http://localhost:5173` by default (Vite's default port).
 | `CLOUDNARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDNARY_API_KEY` | Cloudinary API key |
 | `CLOUDNARY_API_SECRET` | Cloudinary API secret |
+| `REDIS_HOST` | Redis host (default `127.0.0.1`) |
+| `REDIS_PORT` | Redis port (default `6379`) |
+| `REDIS_PASSWORD` | Redis password, if any (optional) |
+| `SMTP_HOST` | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| `SMTP_PORT` | SMTP port (default `587`) |
+| `SMTP_SECURE` | Set to `true` for port 465 TLS (optional) |
+| `SMTP_USER` | SMTP username / email address |
+| `SMTP_PASS` | SMTP password or app password |
+| `SMTP_FROM` | Sender address, e.g. `"VisionTube" <no-reply@visiontube.com>` |
+
+> If `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are **not** set, the backend automatically uses an [Ethereal](https://ethereal.email/) test account and logs a preview URL to the console — no email setup needed for development.
 
 **`frontend/.env`**
 
@@ -165,17 +208,17 @@ The app runs on `http://localhost:5173` by default (Vite's default port).
 |---|---|
 | `VITE_API_URL` | Base URL of the backend API, e.g. `http://localhost:8000/api/v1` |
 
-See `.env.example` in each folder for a ready-to-copy template.
-
 ## API reference
 
-All routes are prefixed with `/api/v1`. Routes marked 🔒 require a valid access token (sent automatically as an httpOnly cookie once logged in).
+All routes are prefixed with `/api/v1`. Routes marked 🔒 require a valid access token.
 
 ### Users (`/users`)
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/register` | Create an account (multipart: `avatar` required, `coverImage` optional) |
+| POST | `/register` | Create an account (multipart: `avatar` required, `coverImage` optional); triggers verification email |
+| GET | `/confirm-email?token=` | Verify email address via token from the confirmation email |
+| POST | `/resend-confirmation` | Resend a verification email (30-second cooldown) |
 | POST | `/login` | Log in, sets access/refresh token cookies |
 | POST | `/logout` 🔒 | Log out, clears cookies |
 | POST | `/refresh-token` | Exchange a valid refresh token for a new access token |
@@ -189,6 +232,7 @@ All routes are prefixed with `/api/v1`. Routes marked 🔒 require a valid acces
 | GET | `/watched-history` 🔒 | Get the current user's watch history |
 | DELETE | `/watched-history` 🔒 | Clear the current user's entire watch history |
 | DELETE | `/watched-history/:videoId` 🔒 | Remove a single video from watch history |
+| GET | `/subscribed-tweets` 🔒 | Latest tweets (past 24 h) from channels the current user is subscribed to |
 
 ### Videos (`/videos`) — all routes 🔒
 
@@ -254,7 +298,7 @@ All routes are prefixed with `/api/v1`. Routes marked 🔒 require a valid acces
 
 ## Data models
 
-- **User** — `username`, `email`, `fullName`, `avatar`, `coverImage`, `watchHistory[]`, `password` (hashed), `refreshToken`
+- **User** — `username`, `email`, `fullName`, `avatar`, `coverImage`, `watchHistory[]`, `password` (hashed), `refreshToken`, `isEmailVerified`, `emailVerificationToken`, `emailVerificationTokenExpiry`, `lastEmailSentAt`
 - **Video** — `title`, `description`, `videoFile`, `thumbnail`, `duration`, `views`, `isPublished`, `owner`
 - **Playlist** — `name`, `description`, `videos[]`, `isPublic`, `owner`
 - **Subscription** — `subscriber`, `channel`
