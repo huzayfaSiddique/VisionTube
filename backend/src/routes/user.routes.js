@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
   registerUser,
+  confirmEmail,
+  resendEmailVerification,
   loginUser,
   logoutUser,
   refreshAccessToken,
@@ -30,6 +32,8 @@ router.route("/register").post(
   ]),
   registerUser
 );
+router.route("/confirm-email").get(confirmEmail);
+router.route("/resend-confirmation").post(resendEmailVerification);
 router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);

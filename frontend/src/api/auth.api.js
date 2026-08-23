@@ -45,3 +45,9 @@ export const updateAccountDetails = async ({ fullName, email }) => {
   });
   return res.data.data;
 };
+
+export const resendConfirmationEmail = async (email) => {
+  const res = await axiosClient.post("/users/resend-confirmation", { email });
+  return res.data;
+};
+

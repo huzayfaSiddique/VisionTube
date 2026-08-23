@@ -44,9 +44,8 @@ export default function RegisterPage() {
 
     try {
       await registerUser(formData);
-      // Backend doesn't log the user in on register (no cookies set),
-      // so send them to login with their email pre-remembered.
-      navigate("/login", { state: { registered: true } });
+      // Send user to dedicated email verification pending page
+      navigate("/verify-email", { state: { email: data.email } });
     } catch (err) {
       setServerError(
         err.response?.data?.message || "Registration failed. Please try again."

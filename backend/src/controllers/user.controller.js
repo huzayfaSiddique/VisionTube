@@ -5,8 +5,10 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import { Tweet } from "../models/tweets.models.js";
 import { Subscription } from "../models/subscription.models.js";
+import { sendConfirmationEmail } from "../utils/sendEmail.js";
 const registerUser = asyncHandler(async (req, res) => {
   // get user details from frontend
   // validation
@@ -27,12 +29,21 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
+  const trimmedUsername = username.trim().toLowerCase();
+  const trimmedEmail = email.trim().toLowerCase();
+
   const existingUser = await User.findOne({
-    $or: [{ username }, { email }],
+    $or: [{ username: trimmedUsername }, { email: trimmedEmail }],
   });
 
   if (existingUser) {
-    throw new ApiError(409, "User with same username or email already exists");
+    if (existingUser.username === trimmedUsername) {
+      throw new ApiError(409, "User with this username already exists");
+    }
+    if (existingUser.email === trimmedEmail) {
+      throw new ApiError(409, "User with this email address already exists");
+    }
+    throw new ApiError(409, "User with this username or email already exists");
   }
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
@@ -51,26 +62,57 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar upload failed");
   }
 
+  // Generate verification token (expires in 24 hours)
+  const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+  const emailVerificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const lastEmailSentAt = new Date();
+
   const user = await User.create({
-    username: username.toLowerCase(),
-    email,
-    fullName,
+    username: trimmedUsername,
+    email: trimmedEmail,
+    fullName: fullName.trim(),
     password,
     avatar: avatar.url,
     coverImage: coverImage?.url || "",
+    emailVerificationToken,
+    emailVerificationTokenExpiry,
+    isEmailVerified: false,
+    lastEmailSentAt,
   });
 
   const createdUser = await User.findById(user._id).select(
-    " -password -refreshToken"
+    " -password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry"
   );
 
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while creating user");
   }
 
+  // Construct confirmation redirect URL
+  const serverPort = process.env.PORT || 8000;
+  const serverUrl = process.env.SERVER_URL || `http://localhost:${serverPort}`;
+  const confirmationUrl = `${serverUrl}/api/v1/users/confirm-email?token=${emailVerificationToken}`;
+
+  // Send confirmation email in background (non-blocking)
+  setImmediate(() => {
+    sendConfirmationEmail({
+      email: user.email,
+      username: user.username,
+      confirmationUrl,
+    }).catch((err) =>
+      console.error("Background registration email dispatch failed:", err)
+    );
+  });
+
   return res
     .status(201)
-    .json(new ApiResponse(201, createdUser, "User registered successfully"));
+    .json(
+      new ApiResponse(
+        201,
+        createdUser,
+        "User registered successfully. Confirmation email sent!"
+      )
+    );
 });
 
 // Hoisted to module scope: both loginUser and refreshAccessToken need this.
@@ -94,18 +136,19 @@ const accessTokenandrefreshToken = async (userId) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    throw new ApiError(400, "All fields are required");
+  if (!email || !password || !email.trim() || !password.trim()) {
+    throw new ApiError(400, "Both email and password are required");
   }
 
-  const user = await User.findOne({ email });
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: cleanEmail });
   if (!user) {
-    throw new ApiError(404, "User not found!");
+    throw new ApiError(401, "Invalid email or password");
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password);
   if (!isPasswordValid) {
-    throw new ApiError(401, "Invalid User Credentials !");
+    throw new ApiError(401, "Invalid email or password");
   }
 
   const { accessToken, refreshToken } = await accessTokenandrefreshToken(
@@ -444,8 +487,106 @@ const getlatesttweetsofsubscribedchannels = asyncHandler(async (req, res) => {
       )
     );
 });
+const confirmEmail = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+
+  const clientUrl =
+    process.env.CORS_ORIGIN || process.env.CLIENT_URL || "http://localhost:5173";
+
+  if (!token) {
+    return res.redirect(`${clientUrl}/login?error=invalid_token`);
+  }
+
+  const user = await User.findOne({
+    emailVerificationToken: token,
+    emailVerificationTokenExpiry: { $gt: new Date() },
+  });
+
+  if (!user) {
+    return res.redirect(`${clientUrl}/login?error=invalid_or_expired_token`);
+  }
+
+  user.isEmailVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationTokenExpiry = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  // Redirect user to frontend confirm-email-success page
+  return res.redirect(`${clientUrl}/confirm-email-success`);
+});
+
+const resendEmailVerification = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.trim()) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  const user = await User.findOne({ email: email.trim().toLowerCase() });
+  if (!user) {
+    throw new ApiError(404, "No account found with this email address");
+  }
+
+  if (user.isEmailVerified) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Your email address is already verified!"));
+  }
+
+  // Enforce 30-second rate-limiting cooldown
+  const COOLDOWN_SECONDS = 30;
+  if (user.lastEmailSentAt) {
+    const timePassedMs = Date.now() - new Date(user.lastEmailSentAt).getTime();
+    const cooldownMs = COOLDOWN_SECONDS * 1000;
+    if (timePassedMs < cooldownMs) {
+      const remainingSeconds = Math.ceil((cooldownMs - timePassedMs) / 1000);
+      throw new ApiError(
+        429,
+        `Please wait ${remainingSeconds} second${remainingSeconds > 1 ? "s" : ""} before requesting another confirmation email.`
+      );
+    }
+  }
+
+  // Generate fresh token and update lastEmailSentAt
+  const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+  const emailVerificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  user.emailVerificationToken = emailVerificationToken;
+  user.emailVerificationTokenExpiry = emailVerificationTokenExpiry;
+  user.lastEmailSentAt = new Date();
+  await user.save({ validateBeforeSave: false });
+
+  // Construct confirmation redirect URL
+  const serverPort = process.env.PORT || 8000;
+  const serverUrl = process.env.SERVER_URL || `http://localhost:${serverPort}`;
+  const confirmationUrl = `${serverUrl}/api/v1/users/confirm-email?token=${emailVerificationToken}`;
+
+  // Non-blocking background email dispatch
+  setImmediate(() => {
+    sendConfirmationEmail({
+      email: user.email,
+      username: user.username,
+      confirmationUrl,
+    }).catch((err) =>
+      console.error("Background resend email dispatch failed:", err)
+    );
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "Confirmation email has been resent successfully. Please check your inbox!"
+      )
+    );
+});
+
 export {
   registerUser,
+  confirmEmail,
+  resendEmailVerification,
   loginUser,
   logoutUser,
   refreshAccessToken,

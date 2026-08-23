@@ -31,4 +31,31 @@ app.use("/api/v1/playlists", playlistRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/comments", commentRouter);
 
+// Global Error Middleware: Ensures all errors return clean JSON responses
+app.use((err, req, res, next) => {
+  let statusCode = err.statusCode || 500;
+  let message = err.message || "Internal Server Error";
+
+  // Handle MongoDB duplicate key errors (E11000)
+  if (err.code === 11000) {
+    statusCode = 409;
+    const field = Object.keys(err.keyValue || {})[0];
+    const value = err.keyValue ? err.keyValue[field] : "";
+    if (field === "username") {
+      message = `User with username '${value}' already exists`;
+    } else if (field === "email") {
+      message = `User with email '${value}' already exists`;
+    } else {
+      message = `User with this ${field || "field"} already exists`;
+    }
+  }
+
+  return res.status(statusCode).json({
+    statusCode,
+    success: false,
+    message,
+    errors: err.errors || [],
+  });
+});
+
 export { app };

@@ -3,6 +3,8 @@ import ProtectedRoute from "./components/ui/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import VerifyEmailPendingPage from "./pages/VerifyEmailPendingPage";
+import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import HomePage from "./pages/HomePage";
 import SearchPage from "./pages/SearchPage";
 import WatchPage from "./pages/WatchPage";
@@ -22,6 +24,8 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPendingPage />} />
+      <Route path="/confirm-email-success" element={<EmailConfirmedPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>

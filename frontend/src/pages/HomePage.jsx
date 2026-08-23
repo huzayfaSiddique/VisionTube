@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { getAllVideos } from "../api/video.api";
 import VideoGrid from "../components/video/VideoGrid";
@@ -7,6 +8,8 @@ const PAGE_SIZE = 20;
 
 export default function HomePage() {
   const [page, setPage] = useState(1);
+  const location = useLocation();
+  const isVerified = new URLSearchParams(location.search).get("verified") === "true";
 
   const { data, isLoading, isPlaceholderData, isError, error } = useQuery({
     queryKey: ["videos", "home", page],
@@ -16,6 +19,13 @@ export default function HomePage() {
 
   return (
     <div>
+      {isVerified && (
+        <div className="mb-6 p-4 bg-emerald-950/70 border border-emerald-600/60 rounded-lg text-emerald-200 text-sm flex items-center gap-2">
+          <span>🎉</span>
+          <span>Your email address has been successfully verified! Welcome to <strong>VisionTube</strong>!</span>
+        </div>
+      )}
+
       <VideoGrid
         videos={data?.docs}
         isLoading={isLoading}
